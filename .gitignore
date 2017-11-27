@@ -3,3 +3,5 @@ stanford_hw
 study
 stats
 svm
+**/*.zip
+**/.ipynb_checkpoints
