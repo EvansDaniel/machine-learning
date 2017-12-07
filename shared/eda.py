@@ -19,9 +19,10 @@ def missing_values(X):
     plt.show()
     return missing_df
 
-def feature_importances(rf_clf, X, figsize=(7,15)):
+def feature_importances(rf_clf, X, figsize=(7,15), plot=True):
     # We will use these feature importances as a baseline later on when we do some feature engineering
     feature_importances = pd.Series(rf_clf.feature_importances_, index=X.columns)
     feature_importances.sort_values(ascending=True, inplace=True)
-    feature_importances.plot(kind='barh', figsize=figsize)
+    if plot:
+        feature_importances.plot(kind='barh', figsize=figsize)
     return feature_importances
