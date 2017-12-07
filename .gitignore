@@ -3,5 +3,8 @@ stanford_hw
 study
 stats
 svm
-**/*.zip
+**/*.csv
+**/*.sav
 **/.ipynb_checkpoints
+**/*.pyc
+**/*.xlsx
