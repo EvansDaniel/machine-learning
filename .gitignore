@@ -1,13 +1,13 @@
+image_net
+**/*.csv
 **/.DS_Store
 project_ideas
 twitter_scraping
-nlp
 .idea
 stanford_hw
 study
 stats
 svm
-**/*.csv
 **/*.sav
 **/.ipynb_checkpoints
 **/*.pyc
