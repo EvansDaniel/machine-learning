@@ -1,0 +1,14 @@
+image_net
+**/*.csv
+**/.DS_Store
+project_ideas
+twitter_scraping
+.idea
+stanford_hw
+study
+stats
+svm
+**/*.sav
+**/.ipynb_checkpoints
+**/*.pyc
+**/*.xlsx
