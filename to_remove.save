@@ -1,0 +1,36 @@
+.gitignore
+	algorithm-implementations/decision-trees/Decision Trees.ipynb
+	algorithm-implementations/linear-regression/homework1.ipynb
+	algorithm-implementations/logistic-regression/Logistic Regression Implementation.ipynb
+	classification/CreditCardFraud/Credit Card Fraud Detection.ipynb
+	classification/CreditCardFraud/creditcard.csv.zip
+	classification/GlobalTerrorism/GTD Predictions and Classifications.ipynb
+	classification/GlobalTerrorism/GTD Visualizations.ipynb
+	classification/GlobalTerrorism/data_descriptions.txt
+	classification/GlobalTerrorism/gtd.csv.zip
+	classification/GlobalTerrorism/map.png
+	classification/GlobalTerrorism/middle_east_north_africa_attacks.png
+	classification/GlobalTerrorism/success_class_imbalance.png
+	nlp/congress/congress-bills.json
+	nlp/congress/congress_bill.py
+	prediction/AmesHousing/Ames Housing Predictions.ipynb
+	prediction/AmesHousing/Ames Housing Visualizations.ipynb
+	prediction/AmesHousing/AmesHousing.zip
+	prediction/AmesHousing/data_descriptions.txt
+	prediction/AmesHousing/test.csv
+	prediction/AmesHousing/train.csv
+	prediction/H1BVisa/2017_NAICS_Descriptions.csv.zip
+	prediction/H1BVisa/H-1B_Disclosure_Data_FY17.csv.zip
+	prediction/H1BVisa/H1B Visa Data Exploration.ipynb
+	prediction/titanic/Titanic Survival.ipynb
+	prediction/titanic/titanic.zip
+	prediction/titanic/titanic_test.csv
+	prediction/titanic/titanic_train.csv
+	requirements.txt
+	shared/.gitignore
+	shared/eda.py
+	shared/feature_selection.py
+	shared/helpers.py
+	shared/metric_eval.py
+	shared/preprocessing.py
+
