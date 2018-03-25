@@ -69,7 +69,7 @@ class LinearClassifier(object):
       #########################################################################
       #                       END OF YOUR CODE                                #
       #########################################################################
-      # learning_rate *= .999
+      
       if verbose and it % 100 == 0:
         print('iteration %d / %d: loss %f' % (it, num_iters, loss))
 
@@ -95,8 +95,7 @@ class LinearClassifier(object):
     # Implement this method. Store the predicted labels in y_pred.            #
     ###########################################################################
     scores = X.dot(self.W)
-    for i in range(len(scores)):
-        y_pred[i] = np.argmax(scores[i])
+    y_pred = np.argmax(scores, axis=1)
     ###########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################
