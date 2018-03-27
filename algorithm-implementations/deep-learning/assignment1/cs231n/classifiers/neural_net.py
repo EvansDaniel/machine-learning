@@ -67,7 +67,7 @@ class TwoLayerNet(object):
     W1, b1 = self.params['W1'], self.params['b1']
     W2, b2 = self.params['W2'], self.params['b2']
     N, D = X.shape
-
+    
     # Compute the forward pass
     scores = None
     #############################################################################
@@ -78,9 +78,8 @@ class TwoLayerNet(object):
     
     # Use a Relu activation function 
     z1 = X.dot(W1) + b1
-    a1 = np.max(0, z1)
+    a1 = np.maximum(0, z1)
     scores = a1.dot(W2) + b2
-    print('here')
     
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -125,7 +124,7 @@ class TwoLayerNet(object):
     
     # dL/dscores i.e. derivative of cross entropy loss w.r.t its input 
     dscores = probs
-    dscores -= dscores[np.arange(N), y] -= 1
+    dscores[np.arange(N), y] -= 1
     dscores /= N
     
     # dL/dW2
@@ -137,7 +136,7 @@ class TwoLayerNet(object):
     
     # dL/db2
     dscores_db2 = np.ones(b2.shape[0])
-    db2 = dscores_db2.dot(dscores) # Same as np.sum(dscores, axis=0)
+    db2 = dscores.dot(dscores_db2) # Same as np.sum(dscores, axis=0)
     grads['b2'] = db2
     
     # Need dL/da1 = dL/dscores * dscores/da1
@@ -151,14 +150,14 @@ class TwoLayerNet(object):
     
     # Need dL/dW1 = dL/dz1 * dz1/dW1
     dz1_dW1 = X
-    dW1 = dz1.dot(dz1_dW1)
+    dW1 = dz1_dW1.T.dot(dz1)
     # reg part of derivative
     dW1 += reg * W1 
     grads['W1'] = dW1
     
     # Need dL/db1 = dL/dz1 * dz1/db1
     dscores_db1 = np.ones(b1.shape[0])
-    db1 = dscores_db1.dot(dz1) # Same as np.sum(dz1, axis=0)
+    db1 = dz1.dot(dscores_db1) # Same as np.sum(dz1, axis=0)
     grads['b1'] = db2
     #############################################################################
     #                              END OF YOUR CODE                             #
