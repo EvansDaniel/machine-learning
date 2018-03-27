@@ -83,11 +83,12 @@ def softmax_loss_vectorized(W, X, y, reg):
 
   # Prevent numeric instability
   scores -= np.matrix(np.max(scores, axis=1)).T
+  # Select only correct class
   f_y_i = - scores[np.arange(num_train), y]
   norm = np.sum(np.exp(scores), axis=1)
   log_norm = np.log(norm)
   loss = np.mean(f_y_i + log_norm)
-  loss += 0.5 * 9 * np.sum(W * W)
+  loss += 0.5 * reg * np.sum(W * W)
 
   # np.matrix(np.float64(norm)).T in R{num_train x 1}
   p = np.exp(scores) / np.matrix(np.float64(norm)).T # R{num_train x num_classes}

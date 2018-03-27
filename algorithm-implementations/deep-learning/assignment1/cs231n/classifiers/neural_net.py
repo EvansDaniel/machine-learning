@@ -75,7 +75,13 @@ class TwoLayerNet(object):
     # Store the result in the scores variable, which should be an array of      #
     # shape (N, C).                                                             #
     #############################################################################
-    pass
+    
+    # Use a Relu activation function 
+    z1 = X.dot(W1) + b1
+    a1 = np.max(0, z1)
+    scores = a1.dot(W2) + b2
+    print('here')
+    
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -92,7 +98,19 @@ class TwoLayerNet(object):
     # in the variable loss, which should be a scalar. Use the Softmax           #
     # classifier loss.                                                          #
     #############################################################################
-    pass
+    
+    # compute the class probabilities
+    scores -= np.max(scores, axis=1)[:, np.newaxis]
+    exp_scores = np.exp(scores)
+    probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True) # [N x K]
+    
+    # Take only correct classes  
+    f_y_i = - scores[np.arange(N), y]
+    norm = np.sum(np.exp(scores), axis=1)
+    log_norm = np.log(norm)
+    loss = np.mean(f_y_i + log_norm)
+    loss += 0.5 * reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+    
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -104,7 +122,44 @@ class TwoLayerNet(object):
     # and biases. Store the results in the grads dictionary. For example,       #
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
-    pass
+    
+    # dL/dscores i.e. derivative of cross entropy loss w.r.t its input 
+    dscores = probs
+    dscores -= dscores[np.arange(N), y] -= 1
+    dscores /= N
+    
+    # dL/dW2
+    dscores_dW2 = a1
+    dW2 = dscores_dW2.T.dot(dscores)
+    # Add reg part of derivative
+    dW2 += reg * W2
+    grads['W2'] = dW2
+    
+    # dL/db2
+    dscores_db2 = np.ones(b2.shape[0])
+    db2 = dscores_db2.dot(dscores) # Same as np.sum(dscores, axis=0)
+    grads['b2'] = db2
+    
+    # Need dL/da1 = dL/dscores * dscores/da1
+    # dscores/da1
+    dscores_da1 = W2
+    da1 = dscores.dot(dscores_da1.T)
+    
+    # Need dL/z1 = dL/da1 * da1/dz1 - This is the derivative of ReLU
+    dz1 = da1
+    dz1[a1 <= 0] = 0
+    
+    # Need dL/dW1 = dL/dz1 * dz1/dW1
+    dz1_dW1 = X
+    dW1 = dz1.dot(dz1_dW1)
+    # reg part of derivative
+    dW1 += reg * W1 
+    grads['W1'] = dW1
+    
+    # Need dL/db1 = dL/dz1 * dz1/db1
+    dscores_db1 = np.ones(b1.shape[0])
+    db1 = dscores_db1.dot(dz1) # Same as np.sum(dz1, axis=0)
+    grads['b1'] = db2
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
