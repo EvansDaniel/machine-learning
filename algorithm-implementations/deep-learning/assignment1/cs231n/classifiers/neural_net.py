@@ -37,8 +37,10 @@ class TwoLayerNet(object):
     self.params = {}
     self.params['W1'] = std * np.random.randn(input_size, hidden_size)
     self.params['b1'] = np.zeros(hidden_size)
-    self.params['W2'] = std * np.random.randn(hidden_size, output_size)
-    self.params['b2'] = np.zeros(output_size)
+    self.params['W2'] = std * np.random.randn(hidden_size, hidden_size)
+    self.params['b2'] = np.zeros(hidden_size)
+    self.params['W3'] = std * np.random.randn(hidden_size, output_size)
+    self.params['b3'] = np.zeros(output_size)
 
   def loss(self, X, y=None, reg=0.0):
     """
@@ -66,6 +68,7 @@ class TwoLayerNet(object):
     # Unpack variables from the params dictionary
     W1, b1 = self.params['W1'], self.params['b1']
     W2, b2 = self.params['W2'], self.params['b2']
+    W3, b3 = self.params['W3'], self.params['b3']
     N, D = X.shape
     
     # Compute the forward pass
@@ -79,7 +82,9 @@ class TwoLayerNet(object):
     # Use a Relu activation function 
     z1 = X.dot(W1) + b1
     a1 = np.maximum(0, z1)
-    scores = a1.dot(W2) + b2
+    z2 = a1.dot(W2) + b2
+    a2 = np.maximum(0, z2)
+    scores = a2.dot(W3) + b3
     
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -129,22 +134,43 @@ class TwoLayerNet(object):
     
     # Need dL/dW2 = dscores_dW2 * dL/dscores
     # dscores/dW2
-    dscores_dW2 = a1
-    dW2 = dscores_dW2.T.dot(dscores)
+    dscores_dW3 = a2
+    dW3 = dscores_dW3.T.dot(dscores)
+    # Add reg part of derivative
+    dW3 += reg * W3
+    grads['W3'] = dW3
+    
+    # Need dL/db2 = dscores/db2 * dL/dscores
+    # dscores/db2
+    dscores_db3 = np.ones(dscores.shape[0])
+    db3 = dscores_db3.dot(dscores) # Same as np.sum(dscores, axis=0)
+    grads['b3'] = db3
+    
+    # Need dL/da1 = dL/dscores * dscores/da1
+    # dscores/da1
+    dscores_da2 = W3
+    da2 = dscores.dot(dscores_da2.T)
+    
+    # Need dL/z1 = dL/da1 * da1/dz1 - This is the derivative of ReLU
+    dz2 = da2
+    dz2[a2 <= 0] = 0
+    
+    # Need dL/W2 = dL/dz2 * dz2/dW2
+    dz2_dW2 = a1
+    dW2 = dz2.T.dot(dz2_dW2)
     # Add reg part of derivative
     dW2 += reg * W2
     grads['W2'] = dW2
     
-    # Need dL/db2 = dscores/db2 * dL/dscores
-    # dscores/db2
-    dscores_db2 = np.ones(dscores.shape[0])
-    db2 = dscores_db2.dot(dscores) # Same as np.sum(dscores, axis=0)
+    # Need dL/db2 = dL/dz2 * dz2/db2
+    dscores_db2 = np.ones(dz2.shape[0])
+    db2 = dscores_db2.dot(dz2) # Same as np.sum(dscores, axis=0)
     grads['b2'] = db2
     
     # Need dL/da1 = dL/dscores * dscores/da1
     # dscores/da1
-    dscores_da1 = W2
-    da1 = dscores.dot(dscores_da1.T)
+    dz2_da1 = W2
+    da1 = dz2.dot(dz2_da1.T)
     
     # Need dL/z1 = dL/da1 * da1/dz1 - This is the derivative of ReLU
     dz1 = da1
@@ -227,6 +253,8 @@ class TwoLayerNet(object):
       self.params['b1'] += - learning_rate * grads['b1']
       self.params['W2'] += - learning_rate * grads['W2']
       self.params['b2'] += - learning_rate * grads['b2']
+      self.params['W3'] += - learning_rate * grads['W3']
+      self.params['b3'] += - learning_rate * grads['b3']
       #########################################################################
       #                             END OF YOUR CODE                          #
       #########################################################################
@@ -270,7 +298,9 @@ class TwoLayerNet(object):
 
     z1 = X.dot(self.params['W1']) + self.params['b1']
     a1 = np.maximum(0, z1)
-    scores = a1.dot(self.params['W2']) + self.params['b2']
+    z2 = a1.dot(self.params['W2']) + self.params['b2']
+    a2 = np.maximum(0, z2)
+    scores = a2.dot(self.params['W3']) + self.params['b3']
     
     # No need to compute softmax because similar to log function
     # it is increasing monotonically so the argmax of the input to 
