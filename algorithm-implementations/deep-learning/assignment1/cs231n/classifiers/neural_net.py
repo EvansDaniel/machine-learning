@@ -103,7 +103,7 @@ class TwoLayerNet(object):
     exp_scores = np.exp(scores)
     probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True) # [N x K]
     
-    # Take only correct classes  
+    # Compute the loss
     f_y_i = - scores[np.arange(N), y]
     norm = np.sum(np.exp(scores), axis=1)
     log_norm = np.log(norm)
