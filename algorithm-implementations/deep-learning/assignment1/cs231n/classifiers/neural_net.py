@@ -127,16 +127,18 @@ class TwoLayerNet(object):
     dscores[np.arange(N), y] -= 1
     dscores /= N
     
-    # dL/dW2
+    # Need dL/dW2 = dscores_dW2 * dL/dscores
+    # dscores/dW2
     dscores_dW2 = a1
     dW2 = dscores_dW2.T.dot(dscores)
     # Add reg part of derivative
     dW2 += reg * W2
     grads['W2'] = dW2
     
-    # dL/db2
-    dscores_db2 = np.ones(b2.shape[0])
-    db2 = dscores.dot(dscores_db2) # Same as np.sum(dscores, axis=0)
+    # Need dL/db2 = dscores/db2 * dL/dscores
+    # dscores/db2
+    dscores_db2 = np.ones(dscores.shape[0])
+    db2 = dscores_db2.dot(dscores) # Same as np.sum(dscores, axis=0)
     grads['b2'] = db2
     
     # Need dL/da1 = dL/dscores * dscores/da1
@@ -154,11 +156,13 @@ class TwoLayerNet(object):
     # reg part of derivative
     dW1 += reg * W1 
     grads['W1'] = dW1
+    #print(W1.shape, dW1.shape, W2.shape, dW2.shape)
     
     # Need dL/db1 = dL/dz1 * dz1/db1
-    dscores_db1 = np.ones(b1.shape[0])
-    db1 = dz1.dot(dscores_db1) # Same as np.sum(dz1, axis=0)
-    grads['b1'] = db2
+    dscores_db1 = np.ones(dz1.shape[0])
+    db1 = dscores_db1.dot(dz1) # Same as np.sum(dz1, axis=0)
+    #print(db1.shape)
+    grads['b1'] = db1
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -194,7 +198,7 @@ class TwoLayerNet(object):
     train_acc_history = []
     val_acc_history = []
 
-    for it in xrange(num_iters):
+    for it in range(num_iters):
       X_batch = None
       y_batch = None
 
@@ -202,7 +206,9 @@ class TwoLayerNet(object):
       # TODO: Create a random minibatch of training data and labels, storing  #
       # them in X_batch and y_batch respectively.                             #
       #########################################################################
-      pass
+      rand_indices = np.random.choice(np.arange(batch_size), batch_size)
+      X_batch = X[rand_indices, :]
+      y_batch = y[rand_indices]
       #########################################################################
       #                             END OF YOUR CODE                          #
       #########################################################################
@@ -217,7 +223,10 @@ class TwoLayerNet(object):
       # using stochastic gradient descent. You'll need to use the gradients   #
       # stored in the grads dictionary defined above.                         #
       #########################################################################
-      pass
+      self.params['W1'] += - learning_rate * grads['W1']
+      self.params['b1'] += - learning_rate * grads['b1']
+      self.params['W2'] += - learning_rate * grads['W2']
+      self.params['b2'] += - learning_rate * grads['b2']
       #########################################################################
       #                             END OF YOUR CODE                          #
       #########################################################################
@@ -259,14 +268,15 @@ class TwoLayerNet(object):
     """
     y_pred = None
 
-    ###########################################################################
-    # TODO: Implement this function; it should be VERY simple!                #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                              END OF YOUR CODE                           #
-    ###########################################################################
-
+    z1 = X.dot(self.params['W1']) + self.params['b1']
+    a1 = np.maximum(0, z1)
+    scores = a1.dot(self.params['W2']) + self.params['b2']
+    
+    # No need to compute softmax because similar to log function
+    # it is increasing monotonically so the argmax of the input to 
+    # the softmax is the argmax of its output
+    y_pred = np.argmax(scores, axis=1)
+    
     return y_pred
 
 
