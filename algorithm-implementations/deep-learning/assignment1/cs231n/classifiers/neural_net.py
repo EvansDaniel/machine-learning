@@ -20,6 +20,21 @@ class AddGate:
         dX = dZ * np.ones_like(X)
         db = np.dot(np.ones((1, dZ.shape[0]), dtype=np.float64), dZ)
         return db, dX
+# Need dL/da1 = dL/dscores * dscores/da1
+# dscores/da1
+# dscores_da1 = W2
+# da1 = dscores.dot(dscores_da1.T)
+    
+# Need dL/z1 = dL/da1 * da1/dz1 - This is the derivative of ReLU
+# dz1 = da1
+# dz1[a1 <= 0] = 0
+class ReLU:
+    def forward(self, X):
+        return np.maximum(0, X)
+    
+    def backward(self, indexer, X):
+        X[indexer < 0] = 0
+        return X
     
 class Softmax:
     def predict(self, scores):
@@ -31,8 +46,9 @@ class Softmax:
         probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True) # [N x K]
         return probs
 
+class CrossEntropyLoss:
     # Cross entropy loss
-    def loss(self, scores, y):
+    def loss(self, scores, y, W, reg):
         '''
         scores - output from last layer of network, shape = (N, C)
         y - labels, shape = (N,)
@@ -42,7 +58,10 @@ class Softmax:
         norm = np.sum(np.exp(scores), axis=1)
         log_norm = np.log(norm)
         loss = np.mean(f_y_i + log_norm)
-        # loss += 0.5 * reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+        W_sum = 0
+        for w in W:
+            W_sum += np.sum(w * w)
+        loss += 0.5 * reg * W_sum
         return loss
 
     def diff(self, scores, y):
@@ -69,8 +88,9 @@ class TwoLayerNet(object):
 
   The outputs of the second fully-connected layer are the scores for each class.
   """
-
-  def __init__(self, input_size, hidden_size, output_size, std=1e-4):
+  # layer_dims must be at least length three
+  # for the input dims, 1 hidden layer, and class dims
+  def __init__(self, layer_dims, std=1e-4):
     """
     Initialize the model. Weights are initialized to small random values and
     biases are initialized to zero. Weights and biases are stored in the
@@ -86,13 +106,19 @@ class TwoLayerNet(object):
     - hidden_size: The number of neurons H in the hidden layer.
     - output_size: The number of classes C.
     """
-    self.params = {}
-    self.params['W1'] = std * np.random.randn(input_size, hidden_size)
-    self.params['b1'] = np.zeros(hidden_size)
-    self.params['W2'] = std * np.random.randn(hidden_size, output_size)
-    self.params['b2'] = np.zeros(output_size)
+    self.W = []
+    self.b = []
+    for i in range(len(layer_dims) - 1):
+        self.W.append(std * np.random.randn(layer_dims[i], layer_dims[i+1]))
+        self.b.append(np.zeros(layer_dims[i+1]))
+    
+    #self.params = {}
+    #self.params['W1'] = std * np.random.randn(input_size, hidden_size)
+    #self.params['b1'] = np.zeros(hidden_size)
+    #self.params['W2'] = std * np.random.randn(hidden_size, output_size)
+    #self.params['b2'] = np.zeros(output_size)
 
-  def loss(self, X, y=None, reg=0.0):
+  def propogate(self, X, y=None, reg=0.0, lr=1e-7):
     """
     Compute the loss and gradients for a two layer fully connected neural
     network.
@@ -116,8 +142,8 @@ class TwoLayerNet(object):
       with respect to the loss function; has the same keys as self.params.
     """
     # Unpack variables from the params dictionary
-    W1, b1 = self.params['W1'], self.params['b1']
-    W2, b2 = self.params['W2'], self.params['b2']
+    #W1, b1 = self.params['W1'], self.params['b1']
+    #W2, b2 = self.params['W2'], self.params['b2']
     N, D = X.shape
     
     # Compute the forward pass
@@ -128,10 +154,23 @@ class TwoLayerNet(object):
     # shape (N, C).                                                             #
     #############################################################################
     
-    # Use a Relu activation function 
-    z1 = X.dot(W1) + b1
-    a1 = np.maximum(0, z1)
-    scores = a1.dot(W2) + b2
+    # Initialize gates, add parameter to pass activation function
+    # gate in 
+    addGate = AddGate()
+    multiplyGate = MultipyGate()
+    activationGate = ReLU()
+    softmaxGate = Softmax()
+    crossEntropy = CrossEntropyLoss()
+    
+    # Do the forward pass 
+    layer_input = X
+    # Contains output from multiply gate, add gate, and layer_input
+    forward_propagation = [None, None, layer_input]
+    for i in range(len(self.W)):
+        multipyOut = multiplyGate.forward(W[i], layer_input)
+        addOut = addGate.forward(multipyOut, b[i])
+        layer_input = activationGate.forward(addOut)
+        forward.append((multipyOut, addOut, layer_input))
     
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -151,23 +190,31 @@ class TwoLayerNet(object):
     #############################################################################
     
     # compute the class probabilities
-    scores -= np.max(scores, axis=1)[:, np.newaxis]
-    exp_scores = np.exp(scores)
-    probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True) # [N x K]
+    #scores -= np.max(scores, axis=1)[:, np.newaxis]
+    #exp_scores = np.exp(scores)
+    #probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True) # [N x K]
     
     # Take only correct classes  
-    f_y_i = - scores[np.arange(N), y]
-    norm = np.sum(np.exp(scores), axis=1)
-    log_norm = np.log(norm)
-    loss = np.mean(f_y_i + log_norm)
-    loss += 0.5 * reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+    #f_y_i = - scores[np.arange(N), y]
+    #norm = np.sum(np.exp(scores), axis=1)
+    #log_norm = np.log(norm)
+    #loss = np.mean(f_y_i + log_norm)
+    #loss += 0.5 * reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+    loss = crossEntropy.loss(layer_input, y, self.W, reg)
+    
+    # Backward pass
+    forward_len = len(forward)
+    # forward[forward_len - 1][2] is the last output from nodes before softmax
+    dscores = crossEntropy.derivative(forward[forward_len - 1][2], y)
+    for i in range(len(forward)-1, 0, -1):
+        dadd  = activationGate.backward(
     
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
 
     # Backward pass: compute gradients
-    grads = {}
+    #grads = {}
     #############################################################################
     # TODO: Compute the backward pass, computing the derivatives of the weights #
     # and biases. Store the results in the grads dictionary. For example,       #
@@ -175,46 +222,46 @@ class TwoLayerNet(object):
     #############################################################################
     
     # dL/dscores i.e. derivative of cross entropy loss w.r.t its input 
-    dscores = probs
-    dscores[np.arange(N), y] -= 1
-    dscores /= N
+    #dscores = probs
+    #dscores[np.arange(N), y] -= 1
+    #dscores /= N
     
     # Need dL/dW2 = dscores_dW2 * dL/dscores
     # dscores/dW2
-    dscores_dW2 = a1
-    dW2 = dscores_dW2.T.dot(dscores)
+    #dscores_dW2 = a1
+    #dW2 = dscores_dW2.T.dot(dscores)
     # Add reg part of derivative
-    dW2 += reg * W2
-    grads['W2'] = dW2
+    #dW2 += reg * W2
+    #grads['W2'] = dW2
     
     # Need dL/db2 = dscores/db2 * dL/dscores
     # dscores/db2
-    dscores_db2 = np.ones(dscores.shape[0])
-    db2 = dscores_db2.dot(dscores) # Same as np.sum(dscores, axis=0)
-    grads['b2'] = db2
+    #dscores_db2 = np.ones(dscores.shape[0])
+    #db2 = dscores_db2.dot(dscores) # Same as np.sum(dscores, axis=0)
+    #grads['b2'] = db2
     
     # Need dL/da1 = dL/dscores * dscores/da1
     # dscores/da1
-    dscores_da1 = W2
-    da1 = dscores.dot(dscores_da1.T)
+    #dscores_da1 = W2
+    #da1 = dscores.dot(dscores_da1.T)
     
     # Need dL/z1 = dL/da1 * da1/dz1 - This is the derivative of ReLU
-    dz1 = da1
-    dz1[a1 <= 0] = 0
+    #dz1 = da1
+    #dz1[a1 <= 0] = 0
     
     # Need dL/dW1 = dL/dz1 * dz1/dW1
-    dz1_dW1 = X
-    dW1 = dz1_dW1.T.dot(dz1)
+    #dz1_dW1 = X
+    #dW1 = dz1_dW1.T.dot(dz1)
     # reg part of derivative
-    dW1 += reg * W1 
-    grads['W1'] = dW1
+    #dW1 += reg * W1 
+    #grads['W1'] = dW1
     #print(W1.shape, dW1.shape, W2.shape, dW2.shape)
     
     # Need dL/db1 = dL/dz1 * dz1/db1
-    dscores_db1 = np.ones(dz1.shape[0])
-    db1 = dscores_db1.dot(dz1) # Same as np.sum(dz1, axis=0)
+    #dscores_db1 = np.ones(dz1.shape[0])
+    #db1 = dscores_db1.dot(dz1) # Same as np.sum(dz1, axis=0)
     #print(db1.shape)
-    grads['b1'] = db1
+    #grads['b1'] = db1
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -266,7 +313,8 @@ class TwoLayerNet(object):
       #########################################################################
 
       # Compute loss and gradients using the current minibatch
-      loss, grads = self.loss(X_batch, y=y_batch, reg=reg)
+      loss = self.propogate(X_batch, y=y_batch, reg=reg, lr=learning_rate)
+      #loss, grads = self.loss(X_batch, y=y_batch, reg=reg)
       loss_history.append(loss)
 
       #########################################################################
