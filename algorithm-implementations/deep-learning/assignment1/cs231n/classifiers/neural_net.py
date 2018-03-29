@@ -152,7 +152,7 @@ class TwoLayerNet:
         # Initialize gates, add parameter to pass activation function
         # gate in 
         addGate = AddGate()
-        multiplyGate = MultipyGate()
+        multiplyGate = MultiplyGate()
         activationGate = ReLU()
         softmaxGate = Softmax()
         crossEntropy = CrossEntropyLoss()
@@ -162,11 +162,17 @@ class TwoLayerNet:
         # Contains output from multiply gate, add gate, and layer_input
         forward_propagation = [None, None, layer_input]
         for i in range(len(self.W)):
-            multipyOut = multiplyGate.forward(W[i], layer_input)
-            addOut = addGate.forward(multipyOut, b[i])
-            layer_input = activationGate.forward(addOut)
-            forward.append((multipyOut, addOut, layer_input))
-
+            multipyOut = multiplyGate.forward(self.W[i], layer_input)
+            addOut = addGate.forward(multipyOut, self.b[i])
+            if i != len(self.W) - 1:
+                layer_input = activationGate.forward(addOut)
+            else:
+                layer_input = addOut
+                print('done', layer_input)
+            forward_propagation.append((multipyOut, addOut, layer_input))
+        
+        scores = layer_input
+        
         # If the targets are not given then jump out, we're done
         if y is None:
           return scores
@@ -175,15 +181,15 @@ class TwoLayerNet:
         loss = crossEntropy.loss(layer_input, y, self.W, reg)
 
         # Backward pass
-        forward_len = len(forward)
+        forward_len = len(forward_propagation)
         # forward[forward_len - 1][2] is the last output from nodes before softmax
-        dscores = crossEntropy.derivative(forward[forward_len - 1][2], y)
+        dscores = crossEntropy.derivative(forward_propagation[forward_len - 1][2], y)
         grad = []
         for i in range(forward_len-1, 0, -1):
             # Take forward inputs and put them through backwards 
-            dadd  = activationGate.backward(forward[i][1], dscores)
-            db, dmult = addGate.backward(forward[i][0], dadd)
-            dW, d = multipyGate.backward(self.W[i-1], forward[i-1][2], dmult)
+            dadd  = activationGate.backward(forward_propagation[i][1], dscores)
+            db, dmult = addGate.backward(forward_propagation[i][0], dadd)
+            dW, d = multipyGate.backward(self.W[i-1], forward_propagation[i-1][2], dmult)
             dW += reg_lambda * self.W[i-1]
             grad.append((dW, db))
             #self.b[i-1] += -epsilon * db
