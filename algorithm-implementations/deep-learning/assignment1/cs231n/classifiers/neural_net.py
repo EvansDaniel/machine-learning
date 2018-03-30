@@ -37,7 +37,7 @@ class ReLU:
         return X
     
 class Softmax:
-    def predict(self, scores):
+    def forward(self, scores):
         '''
         scores: output from last layer of network, shape = (N, C)
         '''
@@ -54,7 +54,7 @@ class CrossEntropyLoss:
         y - labels, shape = (N,)
         '''
         # Take only correct classes  
-        f_y_i = - scores[np.arange(N), y]
+        f_y_i = - scores[np.arange(len(y)), y]
         norm = np.sum(np.exp(scores), axis=1)
         log_norm = np.log(norm)
         loss = np.mean(f_y_i + log_norm)
@@ -64,14 +64,14 @@ class CrossEntropyLoss:
         loss += 0.5 * reg * W_sum
         return loss
 
-    def diff(self, scores, y):
+    def derivative(self, probs, y):
         '''
-        scores - output from last layer of network, shape = (N, C)
+        probs - output from softmax function
         y - labels, shape = (N,)
         '''
-        num_examples = scores.shape[0]
-        probs = self.predict(scores)
+        num_examples = probs.shape[0]
         probs[range(num_examples), y] -= 1
+        probs /= num_examples
         return probs
 
 class TwoLayerNet:
@@ -156,41 +156,45 @@ class TwoLayerNet:
         activationGate = ReLU()
         softmaxGate = Softmax()
         crossEntropy = CrossEntropyLoss()
-
-        # Do the forward pass 
-        layer_input = X
-        # Contains output from multiply gate, add gate, and layer_input
-        forward_propagation = [None, None, layer_input]
-        for i in range(len(self.W)):
-            multipyOut = multiplyGate.forward(self.W[i], layer_input)
-            addOut = addGate.forward(multipyOut, self.b[i])
-            if i != len(self.W) - 1:
-                layer_input = activationGate.forward(addOut)
-            else:
-                layer_input = addOut
-                print('done', layer_input)
-            forward_propagation.append((multipyOut, addOut, layer_input))
         
-        scores = layer_input
+        actOut = X
+        multipyOut = multiplyGate.forward(self.W[0], actOut)
+        addOut = addGate.forward(multipyOut, self.b[0])
+        forward_propagation = [(actOut, addOut, multipyOut)]
+        for i in range(1, len(self.W)):
+            actOut = activationGate.forward(addOut)
+            multipyOut = multiplyGate.forward(self.W[i], actOut)
+            addOut = addGate.forward(multipyOut, self.b[i])
+            forward_propagation.append((actOut, multipyOut, addOut))
+        
+        scores = addOut
         
         # If the targets are not given then jump out, we're done
         if y is None:
           return scores
 
         # Compute the loss
-        loss = crossEntropy.loss(layer_input, y, self.W, reg)
+        loss = crossEntropy.loss(actOut, y, self.W, reg)
 
+        probs = softmaxGate.forward(scores)
         # Backward pass
         forward_len = len(forward_propagation)
-        # forward[forward_len - 1][2] is the last output from nodes before softmax
-        dscores = crossEntropy.derivative(forward_propagation[forward_len - 1][2], y)
+        # forward[forward_len - 1][2] is last addGate
+        dscores = crossEntropy.derivative(probs
+                                          , y)
         grad = []
+        #forward_propagation = np.array(forward_propagation)
+        # forward_propgation[i] = [actOut, multipyOut, addOut]
         for i in range(forward_len-1, 0, -1):
-            # Take forward inputs and put them through backwards 
-            dadd  = activationGate.backward(forward_propagation[i][1], dscores)
-            db, dmult = addGate.backward(forward_propagation[i][0], dadd)
-            dW, d = multipyGate.backward(self.W[i-1], forward_propagation[i-1][2], dmult)
-            dW += reg_lambda * self.W[i-1]
+            db, dmult = addGate.backward(forward_propagation[i][1], 
+                                         dscores)
+            dW, dactivation = multiplyGate.backward(self.W[i-2], 
+                                         forward_propagation[i][0], 
+                                         dmult)
+            if i != 1:
+                dscores = activationGate.backward(
+                    forward_propagation[i][2], dactivation)
+            dW += reg * self.W[i-2]
             grad.append((dW, db))
             #self.b[i-1] += -epsilon * db
             #self.W[i-1] += -epsilon * dW
