@@ -20,14 +20,7 @@ class AddGate:
         dX = dZ * np.ones_like(X)
         db = np.dot(np.ones((1, dZ.shape[0]), dtype=np.float64), dZ)
         return db, dX
-# Need dL/da1 = dL/dscores * dscores/da1
-# dscores/da1
-# dscores_da1 = W2
-# da1 = dscores.dot(dscores_da1.T)
-    
-# Need dL/z1 = dL/da1 * da1/dz1 - This is the derivative of ReLU
-# dz1 = da1
-# dz1[a1 <= 0] = 0
+
 class ReLU:
     def forward(self, X):
         return np.maximum(0, X)
@@ -58,10 +51,9 @@ class CrossEntropyLoss:
         norm = np.sum(np.exp(scores), axis=1)
         log_norm = np.log(norm)
         loss = np.mean(f_y_i + log_norm)
-        W_sum = 0
+        # average cross-entropy loss and regularization
         for w in W:
-            W_sum += np.sum(w * w)
-        loss += 0.5 * reg * W_sum
+            loss += 0.5 * reg * np.sum(w * w)
         return loss
 
     def derivative(self, probs, y):
@@ -111,12 +103,12 @@ class TwoLayerNet:
         for i in range(len(layer_dims) - 1):
             self.W.append(std * np.random.randn(layer_dims[i], layer_dims[i+1]))
             self.b.append(np.zeros(layer_dims[i+1]))
-
-        #self.params = {}
-        #self.params['W1'] = std * np.random.randn(input_size, hidden_size)
-        #self.params['b1'] = np.zeros(hidden_size)
-        #self.params['W2'] = std * np.random.randn(hidden_size, output_size)
-        #self.params['b2'] = np.zeros(output_size)
+            
+        self.params = {}
+        self.params['W1'] = self.W[0]
+        self.params['b1'] = self.b[0]
+        self.params['W2'] = self.W[1]
+        self.params['b2'] = self.b[1]
 
     def loss(self, X, y=None, reg=0.0, lr=1e-7):
         """
@@ -141,12 +133,7 @@ class TwoLayerNet:
         - grads: Dictionary mapping parameter names to gradients of those parameters
           with respect to the loss function; has the same keys as self.params.
         """
-        # Unpack variables from the params dictionary
-        #W1, b1 = self.params['W1'], self.params['b1']
-        #W2, b2 = self.params['W2'], self.params['b2']
         N, D = X.shape
-
-        # Compute the forward pass
         scores = None
 
         # Initialize gates, add parameter to pass activation function
@@ -174,32 +161,36 @@ class TwoLayerNet:
           return scores
 
         # Compute the loss
-        loss = crossEntropy.loss(actOut, y, self.W, reg)
-
+        loss = crossEntropy.loss(scores, y, self.W, reg)
+        
         probs = softmaxGate.forward(scores)
+        
         # Backward pass
         forward_len = len(forward_propagation)
         # forward[forward_len - 1][2] is last addGate
         dscores = crossEntropy.derivative(probs
                                           , y)
         grad = []
-        #forward_propagation = np.array(forward_propagation)
         # forward_propgation[i] = [actOut, multipyOut, addOut]
-        for i in range(forward_len-1, 0, -1):
+        for i in range(forward_len-1, -1, -1):
             db, dmult = addGate.backward(forward_propagation[i][1], 
                                          dscores)
             dW, dactivation = multiplyGate.backward(self.W[i-2], 
                                          forward_propagation[i][0], 
                                          dmult)
-            if i != 1:
+            if i >= 1:
+                #print(dactivation.shape, np.array(forward_propagation[i][0]).shape)
                 dscores = activationGate.backward(
-                    forward_propagation[i][2], dactivation)
+                    forward_propagation[i-1][2], dactivation)
             dW += reg * self.W[i-2]
             grad.append((dW, db))
-            #self.b[i-1] += -epsilon * db
-            #self.W[i-1] += -epsilon * dW
-
-        return loss, grad
+        
+        params = {}
+        params['W1'] = grad[1][0]
+        params['b1'] = np.array(grad[1][1]).reshape(-1)
+        params['W2'] = grad[0][0]
+        params['b2'] = np.array(grad[0][1]).reshape(-1)
+        return loss, params
 
     def train(self, X, y, X_val, y_val,
             learning_rate=1e-3, learning_rate_decay=0.95,
@@ -246,7 +237,7 @@ class TwoLayerNet:
           #########################################################################
 
           # Compute loss and gradients using the current minibatch
-          loss = self.propogate(X_batch, y=y_batch, reg=reg, lr=learning_rate)
+          loss, grads = self.loss(X_batch, y=y_batch, reg=reg, lr=learning_rate)
           #loss, grads = self.loss(X_batch, y=y_batch, reg=reg)
           loss_history.append(loss)
 
