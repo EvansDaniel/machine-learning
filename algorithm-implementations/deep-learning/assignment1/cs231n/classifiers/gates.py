@@ -4,19 +4,19 @@ class MultiplyGate:
     def forward(self,W, X):
         return np.dot(X, W)
 
-    def backward(self, W, X, dZ):
-        dW = np.dot(np.transpose(X), dZ)
-        dX = np.dot(dZ, np.transpose(W))
-        return dW, dX
+    def backward(self, W, act_input, dZ):
+        dW = np.dot(np.transpose(act_input), dZ)
+        dact_input = np.dot(dZ, np.transpose(W))
+        return dW, dact_input
 
 class AddGate:
-    def forward(self, X, b):
-        return X + b
+    def forward(self, mul, b):
+        return mul + b
 
-    def backward(self, X, dZ):
-        dX = dZ * np.ones_like(X)
-        db = np.sum(dZ, axis=0)
-        return db, dX
+    def backward(self, Xmul, dZ):
+        dXmul = dZ * np.ones_like(Xmul) # ?
+        db = np.sum(dZ, axis=0) # ?
+        return db, dXmul
 
 class ReLU:
     def forward(self, X):

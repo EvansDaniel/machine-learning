@@ -12,11 +12,11 @@ class TwoLayerNet:
             self.W.append(std * np.random.randn(layer_dims[i], layer_dims[i+1]))
             self.b.append(np.zeros(layer_dims[i+1]))
         
-        self.params = {} 
-        self.params['W1'] = self.W[0] 
-        self.params['b1'] = self.b[0] 
-        self.params['W2'] = self.W[1]
-        self.params['b2'] = self.b[1]
+        #self.params = {} 
+        #self.params['W1'] = self.W[0] 
+        #self.params['b1'] = self.b[0] 
+        #self.params['W2'] = self.W[1]
+        #self.params['b2'] = self.b[1]
 
     def loss(self, X, y=None, reg=0.0, lr=1e-7):
         N, D = X.shape
@@ -65,17 +65,18 @@ class TwoLayerNet:
                                              forward[i][0], 
                                              dmult)
             if i >= 1:
-                dscores = activationGate.backward(forward[i-1][2], dRelu)
+                dscores = activationGate.backward(forward[i-1][2], 
+                    dRelu)
             dW += reg * self.W[i]
             grad.append((dW, db))
         
         grad = list(reversed(grad))
-        params = {} 
-        params['W1'] = grad[0][0] 
-        params['b1'] = grad[0][1]
-        params['W2'] = grad[1][0]
-        params['b2'] = grad[1][1]
-        return loss, params
+        #params = {} 
+        #params['W1'] = grad[0][0] 
+        #params['b1'] = grad[0][1]
+        #params['W2'] = grad[1][0]
+        #params['b2'] = grad[1][1]
+        return loss, grad
 
     def train(self, X, y, X_val, y_val,
             learning_rate=1e-3, learning_rate_decay=0.95,
@@ -102,13 +103,13 @@ class TwoLayerNet:
           #loss, grads = self.loss(X_batch, y=y_batch, reg=reg)
           loss_history.append(loss)
 
-          #for i in range(len(grads)):
-          #  self.W[i] += - learning_rate * grads[i][0]
-          #  self.b[i] += - learning_rate * np.array(grads[i][1])
-          self.params['W1'] += - learning_rate * grads['W1'] 
-          self.params['b1'] += - learning_rate * grads['b1']
-          self.params['W2'] += - learning_rate * grads['W2'] 
-          self.params['b2'] += - learning_rate * grads['b2']
+          for i in range(len(grads)):
+            self.W[i] += - learning_rate * grads[i][0]
+            self.b[i] += - learning_rate * np.array(grads[i][1])
+          #self.params['W1'] += - learning_rate * grads['W1'] 
+          #self.params['b1'] += - learning_rate * grads['b1']
+          #self.params['W2'] += - learning_rate * grads['W2'] 
+          #self.params['b2'] += - learning_rate * grads['b2']
 
           if verbose and it % 100 == 0:
             print('iteration %d / %d: loss %f' % (it, num_iters, loss))
