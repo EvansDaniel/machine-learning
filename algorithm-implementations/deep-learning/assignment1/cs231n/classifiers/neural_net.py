@@ -34,7 +34,6 @@ class TwoLayerNet:
         multipyOut = multiplyGate.forward(self.W[0], actOut)
         addOut = addGate.forward(multipyOut, self.b[0])
         forward = [(actOut, addOut, multipyOut)]
-        print(len(self.W))
         for i in range(1, len(self.W)):
             actOut = activationGate.forward(addOut)
             multipyOut = multiplyGate.forward(self.W[i], actOut)
@@ -57,25 +56,26 @@ class TwoLayerNet:
         # Backward pass
         forward_len = len(forward)
         # forward[forward_len - 1][2] is last addGate
-        dadd = crossEntropy.derivative(probs
-                                          , y)
+        dscores = crossEntropy.derivative(probs, y)
         grad = []
         # forward_propgation[i] = [actOut, multipyOut, addOut]
         for i in range(forward_len-1, -1, -1):
-            db, dmult = addGate.backward(forward[i][1], 
-                                         dadd)
+            db, dmult = addGate.backward(forward[i][1], dscores)
             dW, dRelu = multiplyGate.backward(self.W[i], 
                                              forward[i][0], 
                                              dmult)
             if i >= 1:
-                dadd = activationGate.backward(forward[i-1][2], dRelu)
+                dscores = activationGate.backward(forward[i-1][2], dRelu)
             dW += reg * self.W[i]
             grad.append((dW, db))
         
         grad = list(reversed(grad))
-        #params = {} #params['W1'] = grad[1][0] #params['b1'] = np.array(grad[1][1]) #params['W2'] = grad[0][0]
-        #params['b2'] = np.array(grad[0][1])
-        return loss, grad
+        params = {} 
+        params['W1'] = grad[0][0] 
+        params['b1'] = grad[0][1]
+        params['W2'] = grad[1][0]
+        params['b2'] = grad[1][1]
+        return loss, params
 
     def train(self, X, y, X_val, y_val,
             learning_rate=1e-3, learning_rate_decay=0.95,
@@ -102,11 +102,13 @@ class TwoLayerNet:
           #loss, grads = self.loss(X_batch, y=y_batch, reg=reg)
           loss_history.append(loss)
 
-          for i in range(len(grads)):
-            self.W[i] += - learning_rate * grads[i][0]
-            self.b[i] += - learning_rate * np.array(grads[i][1])
-          #self.params['W1'] += - learning_rate * grads['W1'] #self.params['b1'] += - learning_rate * grads['b1']
-          #self.params['W2'] += - learning_rate * grads['W2'] #self.params['b2'] += - learning_rate * grads['b2']
+          #for i in range(len(grads)):
+          #  self.W[i] += - learning_rate * grads[i][0]
+          #  self.b[i] += - learning_rate * np.array(grads[i][1])
+          self.params['W1'] += - learning_rate * grads['W1'] 
+          self.params['b1'] += - learning_rate * grads['b1']
+          self.params['W2'] += - learning_rate * grads['W2'] 
+          self.params['b2'] += - learning_rate * grads['b2']
 
           if verbose and it % 100 == 0:
             print('iteration %d / %d: loss %f' % (it, num_iters, loss))
