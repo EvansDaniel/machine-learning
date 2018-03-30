@@ -18,7 +18,7 @@ class AddGate:
 
     def backward(self, X, dZ):
         dX = dZ * np.ones_like(X)
-        db = np.dot(np.ones((1, dZ.shape[0]), dtype=np.float64), dZ)
+        db = np.sum(dZ, axis=0)
         return db, dX
 
 class ReLU:
@@ -103,12 +103,12 @@ class TwoLayerNet:
         for i in range(len(layer_dims) - 1):
             self.W.append(std * np.random.randn(layer_dims[i], layer_dims[i+1]))
             self.b.append(np.zeros(layer_dims[i+1]))
-            
-        self.params = {}
-        self.params['W1'] = self.W[0]
-        self.params['b1'] = self.b[0]
-        self.params['W2'] = self.W[1]
-        self.params['b2'] = self.b[1]
+        
+        #self.params = {}
+        #self.params['W1'] = self.W[0]
+        #self.params['b1'] = self.b[0]
+        #self.params['W2'] = self.W[1]
+        #self.params['b2'] = self.b[1]
 
     def loss(self, X, y=None, reg=0.0, lr=1e-7):
         """
@@ -147,12 +147,13 @@ class TwoLayerNet:
         actOut = X
         multipyOut = multiplyGate.forward(self.W[0], actOut)
         addOut = addGate.forward(multipyOut, self.b[0])
-        forward_propagation = [(actOut, addOut, multipyOut)]
+        forward = [(actOut, addOut, multipyOut)]
         for i in range(1, len(self.W)):
+            #print('i sdlfkj', i)
             actOut = activationGate.forward(addOut)
             multipyOut = multiplyGate.forward(self.W[i], actOut)
             addOut = addGate.forward(multipyOut, self.b[i])
-            forward_propagation.append((actOut, multipyOut, addOut))
+            forward.append((actOut, multipyOut, addOut))
         
         scores = addOut
         
@@ -166,31 +167,39 @@ class TwoLayerNet:
         probs = softmaxGate.forward(scores)
         
         # Backward pass
-        forward_len = len(forward_propagation)
+        forward_len = len(forward)
         # forward[forward_len - 1][2] is last addGate
-        dscores = crossEntropy.derivative(probs
+        dadd = crossEntropy.derivative(probs
                                           , y)
         grad = []
+        print(forward_len)
         # forward_propgation[i] = [actOut, multipyOut, addOut]
         for i in range(forward_len-1, -1, -1):
-            db, dmult = addGate.backward(forward_propagation[i][1], 
-                                         dscores)
-            dW, dactivation = multiplyGate.backward(self.W[i-2], 
-                                         forward_propagation[i][0], 
-                                         dmult)
+            #print('i', i)
+            #print(np.array(forward_propagation[i][1]).shape, 
+            #                             dscores.shape)
+            db, dmult = addGate.backward(forward[i][1], 
+                                         dadd)
+            # 10, (200, 10), (200, 50), (50, 50) 
+            #print(db.shape, 
+            #      dmult.shape, 
+            #      np.array(forward[i][0]).shape, 
+            #      self.W[i-1].shape)
+            dW, dRelu = multiplyGate.backward(self.W[i], 
+                                             forward[i][0], 
+                                             dmult)
             if i >= 1:
-                #print(dactivation.shape, np.array(forward_propagation[i][0]).shape)
-                dscores = activationGate.backward(
-                    forward_propagation[i-1][2], dactivation)
-            dW += reg * self.W[i-2]
+                dadd = activationGate.backward(forward[i-1][2], dRelu)
+            dW += reg * self.W[i]
             grad.append((dW, db))
         
-        params = {}
-        params['W1'] = grad[1][0]
-        params['b1'] = np.array(grad[1][1]).reshape(-1)
-        params['W2'] = grad[0][0]
-        params['b2'] = np.array(grad[0][1]).reshape(-1)
-        return loss, params
+        grad = list(reversed(grad))
+        #params = {}
+        #params['W1'] = grad[1][0]
+        #params['b1'] = np.array(grad[1][1])
+        #params['W2'] = grad[0][0]
+        #params['b2'] = np.array(grad[0][1])
+        return loss, grad
 
     def train(self, X, y, X_val, y_val,
             learning_rate=1e-3, learning_rate_decay=0.95,
@@ -247,10 +256,13 @@ class TwoLayerNet:
           # using stochastic gradient descent. You'll need to use the gradients   #
           # stored in the grads dictionary defined above.                         #
           #########################################################################
-          self.params['W1'] += - learning_rate * grads['W1']
-          self.params['b1'] += - learning_rate * grads['b1']
-          self.params['W2'] += - learning_rate * grads['W2']
-          self.params['b2'] += - learning_rate * grads['b2']
+          for i in range(len(grads)):
+            self.W[i] += - learning_rate * grads[i][0]
+            self.b[i] += - learning_rate * np.array(grads[i][1])
+          #self.params['W1'] += - learning_rate * grads['W1']
+          #self.params['b1'] += - learning_rate * grads['b1']
+          #self.params['W2'] += - learning_rate * grads['W2']
+          #self.params['b2'] += - learning_rate * grads['b2']
           #########################################################################
           #                             END OF YOUR CODE                          #
           #########################################################################
@@ -291,10 +303,28 @@ class TwoLayerNet:
           to have class c, where 0 <= c < C.
         """
         y_pred = None
+        
+        addGate = AddGate()
+        multiplyGate = MultiplyGate()
+        activationGate = ReLU()
+        softmaxGate = Softmax()
+        crossEntropy = CrossEntropyLoss()
+        
+        actOut = X
+        multipyOut = multiplyGate.forward(self.W[0], actOut)
+        addOut = addGate.forward(multipyOut, self.b[0])
+        forward_propagation = [(actOut, addOut, multipyOut)]
+        for i in range(1, len(self.W)):
+            actOut = activationGate.forward(addOut)
+            multipyOut = multiplyGate.forward(self.W[i], actOut)
+            addOut = addGate.forward(multipyOut, self.b[i])
+            forward_propagation.append((actOut, multipyOut, addOut))
+        
+        scores = addOut
 
-        z1 = X.dot(self.params['W1']) + self.params['b1']
-        a1 = np.maximum(0, z1)
-        scores = a1.dot(self.params['W2']) + self.params['b2']
+        #z1 = X.dot(self.params['W1']) + self.params['b1']
+        #a1 = np.maximum(0, z1)
+        #scores = a1.dot(self.params['W2']) + self.params['b2']
 
         # No need to compute softmax because similar to log function
         # it is increasing monotonically so the argmax of the input to 
